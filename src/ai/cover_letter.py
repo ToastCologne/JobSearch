@@ -1,9 +1,5 @@
-"""AI-powered cover letter generation using Claude (streaming)."""
-import anthropic
-
-from src.config import get_anthropic_key
-
-MODEL = "claude-opus-4-6"
+"""AI-powered cover letter generation."""
+from src.ai.provider import generate
 
 SYSTEM = """You are an expert cover letter writer. Write compelling, specific,
 and authentic cover letters that highlight genuine fit without being sycophantic.
@@ -40,9 +36,7 @@ async def generate_cover_letter(
     cv_text: str,
     hooks: list[str] | None = None,
 ) -> str:
-    """Stream a cover letter from Claude. Returns the full letter text."""
-    client = anthropic.AsyncAnthropic(api_key=get_anthropic_key())
-
+    """Generate a cover letter. Returns the full letter text."""
     hooks_text = "\n".join(f"- {h}" for h in (hooks or [])) or "Focus on most relevant experience."
 
     prompt = PROMPT_TEMPLATE.format(
@@ -53,15 +47,4 @@ async def generate_cover_letter(
         hooks=hooks_text,
     )
 
-    text_chunks: list[str] = []
-    async with client.messages.stream(
-        model=MODEL,
-        max_tokens=1024,
-        thinking={"type": "adaptive"},
-        system=SYSTEM,
-        messages=[{"role": "user", "content": prompt}],
-    ) as stream:
-        async for chunk in stream.text_stream:
-            text_chunks.append(chunk)
-
-    return "".join(text_chunks)
+    return await generate(prompt, system=SYSTEM, max_tokens=1024)

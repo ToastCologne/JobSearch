@@ -4,13 +4,11 @@ import base64
 import json
 from pathlib import Path
 
-import anthropic
 from playwright.async_api import async_playwright, Page
 
-from src.config import get_anthropic_key, get_browser_profile_dir, get_output_dir
+from src.ai.provider import generate
+from src.config import get_browser_profile_dir, get_output_dir
 from src.cv_handler import extract_cv_text
-
-MODEL = "claude-opus-4-6"
 
 FIELD_MAPPING_PROMPT = """Analyse this job application form and the candidate's CV.
 Return a JSON object mapping each fillable field to the appropriate value from the CV.
@@ -154,21 +152,13 @@ async def _get_form_html(page: Page) -> str:
 
 
 async def _get_field_mapping(cv_text: str, form_html: str) -> dict:
-    """Ask Claude to map CV data to form fields."""
-    client = anthropic.AsyncAnthropic(api_key=get_anthropic_key())
-
+    """Ask AI to map CV data to form fields."""
     prompt = FIELD_MAPPING_PROMPT.format(
         cv_text=cv_text[:3000],
         form_html=form_html,
     )
 
-    response = await client.messages.create(
-        model=MODEL,
-        max_tokens=1024,
-        messages=[{"role": "user", "content": prompt}],
-    )
-
-    text = next((b.text for b in response.content if b.type == "text"), "{}")
+    text = await generate(prompt, max_tokens=1024)
     try:
         return json.loads(text)
     except json.JSONDecodeError:

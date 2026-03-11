@@ -33,6 +33,28 @@ def get_anthropic_key() -> str:
     return key
 
 
+def get_gemini_key() -> str:
+    key = os.getenv("GEMINI_API_KEY", "")
+    if not key:
+        raise EnvironmentError(
+            "GEMINI_API_KEY not set. Get a free key at https://aistudio.google.com "
+            "and add it to your .env file."
+        )
+    return key
+
+
+def get_ai_config() -> dict:
+    """Return the ai: section from config.yaml with defaults."""
+    cfg = load_config()
+    ai = cfg.get("ai", {})
+    return {
+        "provider": ai.get("provider", "gemini"),
+        "gemini_model": ai.get("gemini_model", "gemini-1.5-flash"),
+        "ollama_model": ai.get("ollama_model", "llama3"),
+        "ollama_host": ai.get("ollama_host", "http://localhost:11434"),
+    }
+
+
 def get_browser_profile_dir() -> Path:
     d = ROOT / "browser_profile"
     d.mkdir(exist_ok=True)

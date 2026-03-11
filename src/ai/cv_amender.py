@@ -1,11 +1,8 @@
-"""AI-powered CV amendment using Claude (streaming)."""
+"""AI-powered CV amendment."""
 import json
+import re
 
-import anthropic
-
-from src.config import get_anthropic_key
-
-MODEL = "claude-opus-4-6"
+from src.ai.provider import generate
 
 SYSTEM = """You are an expert CV writer and career consultant. Your task is to
 tailor a candidate's CV for a specific job posting, highlighting the most
@@ -50,9 +47,7 @@ Rules:
 
 
 async def amend_cv(job: dict, cv_text: str) -> dict:
-    """Stream CV amendments from Claude. Returns amendment dict."""
-    client = anthropic.AsyncAnthropic(api_key=get_anthropic_key())
-
+    """Generate CV amendments. Returns amendment dict."""
     prompt = PROMPT_TEMPLATE.format(
         cv_text=cv_text[:5000],
         title=job.get("title", ""),
@@ -60,27 +55,17 @@ async def amend_cv(job: dict, cv_text: str) -> dict:
         description=job.get("description", "")[:3000],
     )
 
-    text_chunks: list[str] = []
-    async with client.messages.stream(
-        model=MODEL,
-        max_tokens=2048,
-        thinking={"type": "adaptive"},
-        system=SYSTEM,
-        messages=[{"role": "user", "content": prompt}],
-    ) as stream:
-        async for chunk in stream.text_stream:
-            text_chunks.append(chunk)
-
-    full_text = "".join(text_chunks)
+    full_text = await generate(prompt, system=SYSTEM, max_tokens=2048)
 
     try:
         return json.loads(full_text)
     except json.JSONDecodeError:
-        # Try to extract JSON from the text
-        import re
         match = re.search(r"\{.*\}", full_text, re.DOTALL)
         if match:
-            return json.loads(match.group())
+            try:
+                return json.loads(match.group())
+            except json.JSONDecodeError:
+                pass
         return {
             "professional_summary": "",
             "key_skills": [],

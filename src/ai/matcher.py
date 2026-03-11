@@ -1,11 +1,7 @@
-"""AI-powered job matching using Claude."""
+"""AI-powered job matching."""
 import json
 
-import anthropic
-
-from src.config import get_anthropic_key
-
-MODEL = "claude-opus-4-6"
+from src.ai.provider import generate
 
 SYSTEM = """You are an expert career coach and recruiter. Your task is to evaluate
 how well a job posting matches a candidate's CV and specified preferences.
@@ -72,11 +68,9 @@ async def match_job(
     config: dict,
 ) -> tuple[int, list[str]]:
     """Return (score, reasons) for a job posting."""
-    client = anthropic.AsyncAnthropic(api_key=get_anthropic_key())
-
     criteria = _build_criteria_text(config)
     prompt = PROMPT_TEMPLATE.format(
-        cv_text=cv_text[:4000],  # keep within context limits
+        cv_text=cv_text[:4000],
         criteria=criteria,
         title=job.get("title", ""),
         company=job.get("company", ""),
@@ -85,18 +79,7 @@ async def match_job(
         description=job.get("description", "No description available")[:3000],
     )
 
-    response = await client.messages.create(
-        model=MODEL,
-        max_tokens=512,
-        thinking={"type": "adaptive"},
-        system=SYSTEM,
-        messages=[{"role": "user", "content": prompt}],
-    )
-
-    # Extract text block (thinking blocks come first)
-    text = next(
-        (b.text for b in response.content if b.type == "text"), "{}"
-    )
+    text = await generate(prompt, system=SYSTEM, max_tokens=512)
 
     try:
         data = json.loads(text)
