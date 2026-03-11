@@ -66,17 +66,3 @@ ai:
   # Install from https://ollama.ai, then run: ollama pull llama3
   ollama_model: "llama3"
   ollama_host: "http://localhost:11434"
-
-ai:
-  # Which AI provider to use for job matching, CV tailoring, and cover letters.
-  # Options: "gemini" (free), "anthropic" (paid), "ollama" (local/free)
-  provider: "gemini"
-
-  # Gemini settings (provider: gemini)
-  # Get a free API key at https://aistudio.google.com
-  gemini_model: "gemini-1.5-flash"
-
-  # Ollama settings (provider: ollama)
-  # Install from https://ollama.ai, then run: ollama pull llama3
-  ollama_model: "llama3"
-  ollama_host: "http://localhost:11434"
