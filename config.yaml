@@ -1,0 +1,54 @@
+# Job Search Bot Configuration
+# Edit this file to match your search criteria and preferences.
+
+cv:
+  # Path to your CV (PowerPoint format, relative to project root)
+  path: "cv/template.pptx"
+
+search:
+  # Job titles / keywords to search for
+  queries:
+    - "Software Engineer"
+    - "Python Developer"
+    - "Backend Engineer"
+
+  # Location (city, country, or "Remote")
+  location: "London, UK"
+
+  # Include remote jobs
+  remote: true
+
+  # Salary filters (leave null to disable)
+  salary_min: null  # e.g. 60000
+  salary_max: null  # e.g. 150000
+
+  # Which job sites to scrape
+  sites:
+    linkedin: true
+    indeed: true
+    glassdoor: true
+
+  # Company-specific career pages (add as many as you like)
+  company_pages:
+    # - name: "Google"
+    #   url: "https://careers.google.com/jobs/results/?q=python"
+    # - name: "Stripe"
+    #   url: "https://stripe.com/jobs/search?query=engineer"
+
+matching:
+  # Minimum score (0-100) for a job to appear in the dashboard
+  min_score: 50
+
+  # Hard filters applied before AI scoring (leave null to disable)
+  required_keywords: []    # e.g. ["Python", "Django"]
+  excluded_keywords: []    # e.g. ["Java", "PHP"]
+
+scheduler:
+  # Run scraping automatically on a schedule
+  enabled: false
+  # Cron expression: default = weekdays at 9am
+  cron: "0 9 * * 1-5"
+
+dashboard:
+  host: "127.0.0.1"
+  port: 8000

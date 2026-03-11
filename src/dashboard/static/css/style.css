@@ -1,0 +1,63 @@
+/* Job Search Bot — Custom Styles */
+
+body {
+    background: #f8f9fa;
+}
+
+.navbar-brand {
+    font-size: 1.1rem;
+}
+
+/* Score badge colours based on score range */
+.score-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.5rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    font-weight: 700;
+    font-size: 0.875rem;
+    color: #fff;
+}
+.score-badge.score-100,
+.score-badge.score-80 { background: #198754; }
+.score-badge.score-60 { background: #0d6efd; }
+.score-badge.score-40 { background: #fd7e14; }
+.score-badge.score-20,
+.score-badge.score-0  { background: #6c757d; }
+
+/* Job description raw text */
+.job-description {
+    font-family: inherit;
+    font-size: 0.875rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 400px;
+    overflow-y: auto;
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+
+/* Card styling */
+.card {
+    box-shadow: 0 1px 3px rgba(0,0,0,.06);
+}
+
+.card-header {
+    font-weight: 600;
+    background: #f8f9fa;
+    font-size: 0.9rem;
+}
+
+/* Compact list group items */
+.list-group-item {
+    padding: 0.75rem 1rem;
+}
+
+/* Nav active state */
+.nav-link.active {
+    text-decoration: underline;
+}
