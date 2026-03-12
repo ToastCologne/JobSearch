@@ -6,9 +6,8 @@ from typing import Any
 import yaml
 from dotenv import load_dotenv
 
-load_dotenv()
-
 ROOT = Path(__file__).parent.parent
+load_dotenv(ROOT / ".env")
 
 
 def load_config() -> dict[str, Any]:
