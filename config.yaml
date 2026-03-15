@@ -1,16 +1,18 @@
-# Job Search Bot Configuration
-# Edit this file to match your search criteria and preferences.
-
-cv:
-  # Path to your CV (PowerPoint format, relative to project root)
-  path: "cv/template.pptx"
+# Job Search Bot Configuration — Legal & Finance Focus
 
 search:
   # Job titles / keywords to search for
   queries:
-    - "Software Engineer"
-    - "Python Developer"
-    - "Backend Engineer"
+    - "Legal Counsel"
+    - "In-house Counsel"
+    - "Lawyer"
+    - "Associate Lawyer"
+    - "Legal Advisor"
+    - "Corporate Counsel"
+    - "Compliance Counsel"
+    - "Documentation Specialist"
+    - "Legal Documentation"
+    - "Contract Counsel"
 
   # Location (city, country, or "Remote")
   location: "London, UK"
@@ -19,8 +21,8 @@ search:
   remote: true
 
   # Salary filters (leave null to disable)
-  salary_min: null  # e.g. 60000
-  salary_max: null  # e.g. 150000
+  salary_min: null
+  salary_max: null
 
   # Which job sites to scrape
   sites:
@@ -28,20 +30,55 @@ search:
     indeed: true
     glassdoor: true
 
-  # Company-specific career pages (add as many as you like)
+  # Banking & finance company career pages
   company_pages:
-    # - name: "Google"
-    #   url: "https://careers.google.com/jobs/results/?q=python"
-    # - name: "Stripe"
-    #   url: "https://stripe.com/jobs/search?query=engineer"
+    - name: "Goldman Sachs"
+      url: "https://www.goldmansachs.com/careers/search#ss=Legal"
+    - name: "JPMorgan Chase"
+      url: "https://careers.jpmorgan.com/us/en/jobs?search=legal+counsel&category=Legal"
+    - name: "Barclays"
+      url: "https://search.jobs.barclays/search-jobs/legal/united-kingdom/22546/1/2/6269131/51x5-0/-0x12667/50/2"
+    - name: "HSBC"
+      url: "https://mycareer.hsbc.com/en_GB/ext/Search.html?jobFamily=Legal%2C+Compliance+%26+Regulatory"
+    - name: "Deutsche Bank"
+      url: "https://careers.db.com/professionals/search-roles/#/professional/results?keywords=legal+counsel"
+    - name: "Citi"
+      url: "https://jobs.citi.com/search-jobs/legal/287/1"
+    - name: "UBS"
+      url: "https://www.ubs.com/global/en/careers/job-search.html#q=legal+counsel&t=1"
+    - name: "Morgan Stanley"
+      url: "https://www.morganstanley.com/careers/search-jobs?keyword=legal&department=Legal"
+    - name: "BNP Paribas"
+      url: "https://group.bnpparibas/en/careers/job-offers?keywords=legal+counsel&country=United+Kingdom"
+    - name: "Standard Chartered"
+      url: "https://scb.taleo.net/careersection/ex/jobsearch.ftl?lang=en&keyword=legal+counsel"
+    - name: "Lloyds Banking Group"
+      url: "https://www.lloydsbankinggroup.com/careers/opportunities.html?keywords=legal+counsel"
+    - name: "NatWest Group"
+      url: "https://jobs.natwestgroup.com/jobs/?keywords=legal+counsel"
+    - name: "BlackRock"
+      url: "https://careers.blackrock.com/job-search-results/?keyword=legal+counsel"
+    - name: "Societe Generale"
+      url: "https://careers.societegenerale.com/en/job-offers?keywords=legal+counsel&country=United+Kingdom"
+    - name: "Credit Agricole"
+      url: "https://www.credit-agricole.com/en/career/job-offers?q=legal+counsel"
 
 matching:
-  # Minimum score (0-100) for a job to appear in the dashboard
-  min_score: 50
+  # Keywords that MUST appear in the job title or description
+  required_keywords:
+    - ""  # Leave empty to disable; add e.g. "banking" to only show banking roles
 
-  # Hard filters applied before AI scoring (leave null to disable)
-  required_keywords: []    # e.g. ["Python", "Django"]
-  excluded_keywords: []    # e.g. ["Java", "PHP"]
+  # Keywords that disqualify a job — any match means the job is excluded
+  excluded_keywords:
+    - ""  # Leave empty to disable; add e.g. "paralegal" to exclude those roles
+
+  # Language exclusion: jobs requiring these languages are automatically excluded.
+  # The scraper will filter out postings that list French, German, or Luxembourgish
+  # as a required language.
+  exclude_languages:
+    - "French"
+    - "German"
+    - "Luxembourgish"
 
 scheduler:
   # Run scraping automatically on a schedule
@@ -52,17 +89,3 @@ scheduler:
 dashboard:
   host: "127.0.0.1"
   port: 8000
-
-ai:
-  # Which AI provider to use for job matching, CV tailoring, and cover letters.
-  # Options: "gemini" (free), "anthropic" (paid), "ollama" (local/free)
-  provider: "gemini"
-
-  # Gemini settings (provider: gemini)
-  # Get a free API key at https://aistudio.google.com
-  gemini_model: "gemini-1.5-flash"
-
-  # Ollama settings (provider: ollama)
-  # Install from https://ollama.ai, then run: ollama pull llama3
-  ollama_model: "llama3"
-  ollama_host: "http://localhost:11434"

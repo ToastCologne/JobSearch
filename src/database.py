@@ -1,5 +1,4 @@
 """SQLite database layer."""
-import json
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
@@ -18,12 +17,8 @@ CREATE TABLE IF NOT EXISTS jobs (
     description         TEXT,
     salary              TEXT,
     posted_date         TEXT,
+    years_experience    TEXT,
     status              TEXT DEFAULT 'new',
-    match_score         INTEGER,
-    match_reasons       TEXT,
-    cv_path             TEXT,
-    cover_letter_path   TEXT,
-    form_screenshot     TEXT,
     notes               TEXT,
     created_at          TEXT DEFAULT (datetime('now')),
     updated_at          TEXT DEFAULT (datetime('now'))
@@ -34,7 +29,7 @@ CREATE TABLE IF NOT EXISTS scrape_runs (
     started_at      TEXT DEFAULT (datetime('now')),
     completed_at    TEXT,
     jobs_found      INTEGER DEFAULT 0,
-    jobs_matched    INTEGER DEFAULT 0,
+    jobs_saved      INTEGER DEFAULT 0,
     status          TEXT DEFAULT 'running',
     error           TEXT
 );
@@ -67,27 +62,25 @@ def get_conn() -> Generator[sqlite3.Connection, None, None]:
 def init_db() -> None:
     with get_conn() as conn:
         conn.executescript(DDL)
+        # Migrate existing databases: add years_experience if missing
+        cols = [row[1] for row in conn.execute("PRAGMA table_info(jobs)").fetchall()]
+        if "years_experience" not in cols:
+            conn.execute("ALTER TABLE jobs ADD COLUMN years_experience TEXT")
+        # Remove old AI columns gracefully — SQLite doesn't support DROP COLUMN
+        # before v3.35, so we just leave them in place if they exist.
 
 
 def upsert_job(job: dict[str, Any]) -> int | None:
     """Insert a new job or ignore if URL already exists. Returns new id or None."""
     sql = """
         INSERT OR IGNORE INTO jobs
-            (title, company, location, url, site, description, salary, posted_date)
+            (title, company, location, url, site, description, salary, posted_date, years_experience)
         VALUES
-            (:title, :company, :location, :url, :site, :description, :salary, :posted_date)
+            (:title, :company, :location, :url, :site, :description, :salary, :posted_date, :years_experience)
     """
     with get_conn() as conn:
         cur = conn.execute(sql, job)
         return cur.lastrowid if cur.lastrowid else None
-
-
-def update_match(job_id: int, score: int, reasons: list[str]) -> None:
-    with get_conn() as conn:
-        conn.execute(
-            "UPDATE jobs SET match_score=?, match_reasons=?, status='reviewing' WHERE id=?",
-            (score, json.dumps(reasons), job_id),
-        )
 
 
 def update_status(job_id: int, status: str) -> None:
@@ -97,33 +90,24 @@ def update_status(job_id: int, status: str) -> None:
         conn.execute("UPDATE jobs SET status=? WHERE id=?", (status, job_id))
 
 
-def update_job_field(job_id: int, field: str, value: str) -> None:
-    allowed = {"cv_path", "cover_letter_path", "form_screenshot", "notes"}
-    if field not in allowed:
-        raise ValueError(f"Cannot update field: {field}")
+def update_notes(job_id: int, notes: str) -> None:
     with get_conn() as conn:
-        conn.execute(f"UPDATE jobs SET {field}=? WHERE id=?", (value, job_id))
+        conn.execute("UPDATE jobs SET notes=? WHERE id=?", (notes, job_id))
 
 
 def get_job(job_id: int) -> dict[str, Any] | None:
     with get_conn() as conn:
         row = conn.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
-    if not row:
-        return None
-    d = dict(row)
-    if d.get("match_reasons"):
-        d["match_reasons"] = json.loads(d["match_reasons"])
-    return d
+    return dict(row) if row else None
 
 
 def list_jobs(
     status: str | None = None,
     site: str | None = None,
-    min_score: int = 0,
     limit: int = 100,
     offset: int = 0,
 ) -> list[dict[str, Any]]:
-    where_clauses = [f"match_score >= {min_score}"]
+    where_clauses: list[str] = []
     params: list[Any] = []
     if status:
         where_clauses.append("status = ?")
@@ -131,22 +115,16 @@ def list_jobs(
     if site:
         where_clauses.append("site = ?")
         params.append(site)
-    where = " AND ".join(where_clauses)
+    where = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
     sql = f"""
-        SELECT * FROM jobs WHERE {where}
-        ORDER BY match_score DESC, created_at DESC
+        SELECT * FROM jobs {where}
+        ORDER BY created_at DESC
         LIMIT ? OFFSET ?
     """
     params.extend([limit, offset])
     with get_conn() as conn:
         rows = conn.execute(sql, params).fetchall()
-    result = []
-    for row in rows:
-        d = dict(row)
-        if d.get("match_reasons"):
-            d["match_reasons"] = json.loads(d["match_reasons"])
-        result.append(d)
-    return result
+    return [dict(row) for row in rows]
 
 
 def count_by_status() -> dict[str, int]:
@@ -163,14 +141,14 @@ def start_scrape_run() -> int:
         return cur.lastrowid
 
 
-def finish_scrape_run(run_id: int, found: int, matched: int, error: str | None = None) -> None:
+def finish_scrape_run(run_id: int, found: int, saved: int, error: str | None = None) -> None:
     status = "failed" if error else "completed"
     with get_conn() as conn:
         conn.execute(
             """UPDATE scrape_runs
-               SET completed_at=datetime('now'), jobs_found=?, jobs_matched=?, status=?, error=?
+               SET completed_at=datetime('now'), jobs_found=?, jobs_saved=?, status=?, error=?
                WHERE id=?""",
-            (found, matched, status, error, run_id),
+            (found, saved, status, error, run_id),
         )
 
 
