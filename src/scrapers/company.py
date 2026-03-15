@@ -57,7 +57,11 @@ class CompanyPageScraper(BaseScraper):
                 ):
                     if not any(
                         kw in text.lower()
-                        for kw in ["engineer", "developer", "manager", "analyst", "designer"]
+                        for kw in [
+                            "engineer", "developer", "manager", "analyst", "designer",
+                            "counsel", "lawyer", "legal", "attorney", "solicitor",
+                            "documentation", "compliance", "advisor", "associate",
+                        ]
                     ):
                         continue
 

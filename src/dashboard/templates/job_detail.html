@@ -1,84 +1,79 @@
 {% extends "base.html" %}
-{% block title %}{{ job.title }} – Job Search Bot{% endblock %}
+{% block title %}{{ job.title }} – Legal Job Scraper{% endblock %}
 
 {% block content %}
 <!-- Header -->
-<div class="d-flex justify-content-between align-items-start mb-4">
+<div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
     <div>
         <a href="/jobs" class="text-muted small text-decoration-none">
             <i class="bi bi-arrow-left me-1"></i>Back to jobs
         </a>
-        <h2 class="mt-1 mb-0">{{ job.title }}</h2>
+        <h2 class="mt-1 mb-1">{{ job.title }}</h2>
         <div class="text-muted">
-            <i class="bi bi-building me-1"></i>{{ job.company }}
+            <i class="bi bi-building me-1"></i><strong>{{ job.company }}</strong>
             {% if job.location %}<span class="mx-2">·</span><i class="bi bi-geo-alt me-1"></i>{{ job.location }}{% endif %}
             {% if job.salary %}<span class="mx-2">·</span><i class="bi bi-currency-pound me-1"></i>{{ job.salary }}{% endif %}
             <span class="mx-2">·</span><span class="badge bg-secondary">{{ job.site }}</span>
         </div>
-    </div>
-    <div class="text-end">
-        <div class="score-badge score-{{ (job.match_score or 0) // 20 * 20 }} fs-4 mb-2">
-            {{ job.match_score or '?' }}<small class="fs-6 ms-1 opacity-75">/100</small>
+        {% if job.years_experience %}
+        <div class="mt-2">
+            <span class="badge bg-info text-dark fs-6 px-3 py-2">
+                <i class="bi bi-clock me-1"></i>{{ job.years_experience }} experience required
+            </span>
         </div>
-        <a href="{{ job.url }}" target="_blank" class="btn btn-sm btn-outline-secondary">
-            <i class="bi bi-box-arrow-up-right me-1"></i>View Original
+        {% endif %}
+    </div>
+    <div class="d-flex flex-column gap-2 align-items-end">
+        <a href="{{ job.url }}" target="_blank" rel="noopener" class="btn btn-primary">
+            <i class="bi bi-box-arrow-up-right me-1"></i>Apply Now
         </a>
+        {% if job.posted_date %}
+        <small class="text-muted">Posted: {{ job.posted_date }}</small>
+        {% endif %}
     </div>
 </div>
 
 <div class="row g-4">
-    <!-- Left column -->
-    <div class="col-lg-7">
-
-        <!-- Match reasons -->
-        {% if job.match_reasons %}
-        <div class="card mb-3">
-            <div class="card-header"><i class="bi bi-check2-circle me-2 text-success"></i>Why it matches</div>
-            <ul class="list-group list-group-flush">
-                {% for reason in job.match_reasons %}
-                <li class="list-group-item small">{{ reason }}</li>
-                {% endfor %}
-            </ul>
-        </div>
-        {% endif %}
-
-        <!-- Job description -->
-        <div class="card mb-3">
+    <!-- Left column: description -->
+    <div class="col-lg-8">
+        <div class="card">
             <div class="card-header"><i class="bi bi-file-text me-2"></i>Job Description</div>
             <div class="card-body">
                 <pre class="job-description">{{ job.description or 'No description available.' }}</pre>
             </div>
         </div>
-
-        <!-- Cover letter preview -->
-        {% if cover_letter_text %}
-        <div class="card mb-3">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-envelope-paper me-2 text-success"></i>Cover Letter</span>
-                <a href="/jobs/{{ job.id }}/cover-letter-download" class="btn btn-sm btn-outline-success">
-                    <i class="bi bi-download me-1"></i>Download
-                </a>
-            </div>
-            <div class="card-body">
-                <pre class="job-description">{{ cover_letter_text }}</pre>
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- Form screenshot -->
-        {% if job.form_screenshot %}
-        <div class="card mb-3">
-            <div class="card-header"><i class="bi bi-display me-2 text-info"></i>Pre-filled Application Form</div>
-            <div class="card-body p-0">
-                <img src="/output/screenshots/job_{{ job.id }}.png" class="img-fluid rounded-bottom" alt="Form screenshot">
-            </div>
-        </div>
-        {% endif %}
-
     </div>
 
-    <!-- Right column: actions -->
-    <div class="col-lg-5">
+    <!-- Right column: actions & metadata -->
+    <div class="col-lg-4">
+
+        <!-- Quick info -->
+        <div class="card mb-3">
+            <div class="card-header"><i class="bi bi-info-circle me-2"></i>Details</div>
+            <div class="card-body">
+                <dl class="row mb-0 small">
+                    <dt class="col-sm-5">Company</dt>
+                    <dd class="col-sm-7">{{ job.company }}</dd>
+                    {% if job.years_experience %}
+                    <dt class="col-sm-5">Experience</dt>
+                    <dd class="col-sm-7">{{ job.years_experience }}</dd>
+                    {% endif %}
+                    {% if job.salary %}
+                    <dt class="col-sm-5">Salary</dt>
+                    <dd class="col-sm-7">{{ job.salary }}</dd>
+                    {% endif %}
+                    <dt class="col-sm-5">Source</dt>
+                    <dd class="col-sm-7">{{ job.site }}</dd>
+                    <dt class="col-sm-5">Found</dt>
+                    <dd class="col-sm-7">{{ job.created_at[:10] if job.created_at else '—' }}</dd>
+                </dl>
+                <div class="mt-3">
+                    <a href="{{ job.url }}" target="_blank" rel="noopener" class="btn btn-primary w-100">
+                        <i class="bi bi-box-arrow-up-right me-1"></i>Go to Application
+                    </a>
+                </div>
+            </div>
+        </div>
 
         <!-- Status -->
         <div class="card mb-3">
@@ -95,80 +90,6 @@
             </div>
         </div>
 
-        <!-- Actions -->
-        <div class="card mb-3">
-            <div class="card-header"><i class="bi bi-lightning me-2"></i>Actions</div>
-            <div class="card-body d-grid gap-2">
-
-                <!-- Amend CV -->
-                {% if job.cv_path %}
-                <div class="d-flex gap-2">
-                    <form method="post" action="/jobs/{{ job.id }}/amend-cv" class="flex-grow-1">
-                        <button type="submit" class="btn btn-outline-primary w-100">
-                            <i class="bi bi-pencil-square me-1"></i>Re-amend CV
-                        </button>
-                    </form>
-                    <a href="/jobs/{{ job.id }}/cv-download" class="btn btn-success">
-                        <i class="bi bi-download me-1"></i>Download CV
-                    </a>
-                </div>
-                {% else %}
-                <form method="post" action="/jobs/{{ job.id }}/amend-cv" id="amendForm">
-                    <button type="submit" class="btn btn-outline-primary w-100" id="amendBtn">
-                        <i class="bi bi-pencil-square me-1"></i>Amend CV for this Job
-                    </button>
-                </form>
-                {% endif %}
-
-                <!-- Cover Letter -->
-                {% if job.cover_letter_path %}
-                <div class="d-flex gap-2">
-                    <form method="post" action="/jobs/{{ job.id }}/cover-letter" class="flex-grow-1">
-                        <button type="submit" class="btn btn-outline-secondary w-100">
-                            <i class="bi bi-arrow-repeat me-1"></i>Regenerate Cover Letter
-                        </button>
-                    </form>
-                    <a href="/jobs/{{ job.id }}/cover-letter-download" class="btn btn-success">
-                        <i class="bi bi-download me-1"></i>Download
-                    </a>
-                </div>
-                {% else %}
-                <form method="post" action="/jobs/{{ job.id }}/cover-letter" id="clForm">
-                    <button type="submit" class="btn btn-outline-secondary w-100" id="clBtn">
-                        <i class="bi bi-envelope-paper me-1"></i>Generate Cover Letter
-                    </button>
-                </form>
-                {% endif %}
-
-                <!-- Fill Form -->
-                <form method="post" action="/jobs/{{ job.id }}/fill-form">
-                    <button type="submit" class="btn btn-outline-info w-100">
-                        <i class="bi bi-ui-checks me-1"></i>Pre-fill Application Form
-                    </button>
-                </form>
-
-            </div>
-        </div>
-
-        <!-- Job metadata -->
-        <div class="card mb-3">
-            <div class="card-header"><i class="bi bi-info-circle me-2"></i>Details</div>
-            <div class="card-body">
-                <dl class="row mb-0 small">
-                    <dt class="col-sm-5">Posted</dt>
-                    <dd class="col-sm-7">{{ job.posted_date or 'Unknown' }}</dd>
-                    <dt class="col-sm-5">Found on</dt>
-                    <dd class="col-sm-7">{{ job.created_at }}</dd>
-                    <dt class="col-sm-5">CV amended</dt>
-                    <dd class="col-sm-7">{{ 'Yes' if job.cv_path else 'No' }}</dd>
-                    <dt class="col-sm-5">Cover letter</dt>
-                    <dd class="col-sm-7">{{ 'Yes' if job.cover_letter_path else 'No' }}</dd>
-                    <dt class="col-sm-5">Form filled</dt>
-                    <dd class="col-sm-7">{{ 'Yes' if job.form_screenshot else 'No' }}</dd>
-                </dl>
-            </div>
-        </div>
-
         <!-- Notes -->
         <div class="card">
             <div class="card-header"><i class="bi bi-sticky me-2"></i>Notes</div>
@@ -179,46 +100,7 @@
                 </form>
             </div>
         </div>
+
     </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
-{% if request.query_params.get('amend') == 'pending' %}
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    const btn = document.getElementById('amendBtn');
-    if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Amending CV...';
-    }
-    pollStatus('/jobs/{{ job.id }}/amend-status', 3000, (status) => {
-        if (status.startsWith('error')) {
-            alert('CV amendment failed: ' + status);
-        } else {
-            location.reload();
-        }
-    });
-});
-</script>
-{% endif %}
-
-{% if request.query_params.get('cl') == 'pending' %}
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    const btn = document.getElementById('clBtn');
-    if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Generating...';
-    }
-    pollStatus('/jobs/{{ job.id }}/cl-status', 3000, (status) => {
-        if (status.startsWith('error')) {
-            alert('Cover letter generation failed: ' + status);
-        } else {
-            location.reload();
-        }
-    });
-});
-</script>
-{% endif %}
 {% endblock %}
