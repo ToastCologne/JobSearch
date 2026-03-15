@@ -190,7 +190,14 @@ async def run_scrape_pipeline(headless: bool = True) -> dict:
     for job in all_jobs:
         title = job.get("title", "") or ""
         desc = job.get("description", "") or ""
+        job_location = job.get("location", "") or ""
         full_text = f"{title} {desc}"
+
+        # 0. Location guard: if a location is present it must mention Luxembourg.
+        #    Jobs with no location (e.g. some company-page results) are allowed through.
+        if job_location and "luxembourg" not in job_location.lower():
+            print(f"  [SKIP] Location '{job_location}': {title}")
+            continue
 
         # 1. Title must contain a legal keyword AND must not contain excluded title words
         if not _passes_title_filters(title, required_title_kw, excluded_title_kw):
