@@ -12,28 +12,63 @@ class LinkedInScraper(BaseScraper):
     site_name = "linkedin"
     BASE_URL = "https://www.linkedin.com"
 
+    async def _ensure_logged_in(self) -> bool:
+        """
+        Check if LinkedIn session is active. If not, open a visible browser
+        window so the user can log in, then switch back to headless mode.
+        Returns True when a valid session exists.
+        """
+        page = await self.new_page()
+        try:
+            await page.goto(
+                f"{self.BASE_URL}/feed/", wait_until="domcontentloaded", timeout=30000
+            )
+            await self.human_delay(1000, 2000)
+            already_logged_in = "login" not in page.url and "authwall" not in page.url
+        finally:
+            await page.close()
+
+        if already_logged_in:
+            return True
+
+        # ── Not logged in: reopen browser as visible window ──────────────
+        print(
+            "[LinkedIn] No active session found.\n"
+            "[LinkedIn] Opening a browser window for login — please sign in, "
+            "then wait (up to 2 minutes)."
+        )
+        await self._open_context(headless=False)
+        login_page = await self.new_page()
+        await login_page.goto("https://www.linkedin.com/login")
+
+        try:
+            # Wait until LinkedIn redirects to the feed after successful login
+            await login_page.wait_for_url("**/feed/**", timeout=120_000)
+            print("[LinkedIn] Login detected — session saved. Continuing scrape...")
+        except PlaywrightTimeout:
+            print("[LinkedIn] Login timed out (2 min). Skipping LinkedIn this run.")
+            await login_page.close()
+            await self._open_context(self.headless)
+            return False
+
+        await login_page.close()
+        # Switch back to original headless mode now that cookies are saved
+        await self._open_context(self.headless)
+        return True
+
     async def scrape_jobs(
         self, queries: list[str], location: str, remote: bool = False
     ) -> list[dict[str, Any]]:
+        if not await self._ensure_logged_in():
+            return []
+
         jobs: list[dict[str, Any]] = []
         page = await self.new_page()
         try:
-            # Check if we're logged in
-            await page.goto(f"{self.BASE_URL}/feed/", wait_until="domcontentloaded", timeout=30000)
-            await self.human_delay(1000, 2000)
-
-            if "login" in page.url or "authwall" in page.url:
-                print(
-                    "[LinkedIn] Not logged in. Please run with --login flag to "
-                    "authenticate, then re-run the scraper."
-                )
-                return []
-
             for query in queries:
                 page_jobs = await self._search_query(page, query, location, remote)
                 jobs.extend(page_jobs)
                 await self.human_delay(2000, 4000)
-
         finally:
             await page.close()
 
@@ -45,25 +80,23 @@ class LinkedInScraper(BaseScraper):
         jobs: list[dict[str, Any]] = []
         params = f"keywords={quote_plus(query)}&location={quote_plus(location)}"
         if remote:
-            params += "&f_WT=2"  # remote filter
+            params += "&f_WT=2"
 
         url = f"{self.BASE_URL}/jobs/search/?{params}"
         await page.goto(url, wait_until="domcontentloaded", timeout=30000)
         await self.human_delay(2000, 3000)
 
-        # Scroll to load more results
         for _ in range(3):
             await page.keyboard.press("End")
             await self.human_delay(1000, 2000)
 
-        # Collect job cards
         cards = await page.query_selector_all("div.job-card-container")
         if not cards:
             cards = await page.query_selector_all("li.jobs-search-results__list-item")
 
-        print(f"[LinkedIn] Found {len(cards)} cards for '{query}'")
+        print(f"[LinkedIn] Found {len(cards)} cards for '{query}' in {location}")
 
-        for card in cards[:25]:  # cap per query
+        for card in cards[:25]:
             try:
                 job = await self._extract_card(page, card)
                 if job:
@@ -76,8 +109,12 @@ class LinkedInScraper(BaseScraper):
 
     async def _extract_card(self, page: Page, card) -> dict[str, Any] | None:
         try:
-            title_el = await card.query_selector("a.job-card-list__title, .job-card-container__link")
-            company_el = await card.query_selector(".job-card-container__company-name, .artdeco-entity-lockup__subtitle")
+            title_el = await card.query_selector(
+                "a.job-card-list__title, .job-card-container__link"
+            )
+            company_el = await card.query_selector(
+                ".job-card-container__company-name, .artdeco-entity-lockup__subtitle"
+            )
             location_el = await card.query_selector(".job-card-container__metadata-item")
 
             if not title_el:
@@ -90,23 +127,23 @@ class LinkedInScraper(BaseScraper):
             href = await title_el.get_attribute("href")
             if not href:
                 return None
-            # Normalise URL
             if href.startswith("/"):
                 href = f"https://www.linkedin.com{href}"
-            url = href.split("?")[0]  # strip tracking params
+            url = href.split("?")[0]
 
-            # Get description by clicking card
             description = ""
             salary = ""
             try:
                 await card.click()
                 await self.human_delay(1500, 2500)
-
-                desc_el = await page.query_selector(".jobs-description-content__text, #job-details")
+                desc_el = await page.query_selector(
+                    ".jobs-description-content__text, #job-details"
+                )
                 if desc_el:
                     description = (await desc_el.inner_text()).strip()[:5000]
-
-                salary_el = await page.query_selector(".compensation__salary-range, .jobs-unified-top-card__job-insight")
+                salary_el = await page.query_selector(
+                    ".compensation__salary-range, .jobs-unified-top-card__job-insight"
+                )
                 if salary_el:
                     salary = (await salary_el.inner_text()).strip()
             except Exception:
@@ -125,14 +162,3 @@ class LinkedInScraper(BaseScraper):
         except Exception as e:
             print(f"[LinkedIn] Card extraction error: {e}")
             return None
-
-
-async def open_login_page() -> None:
-    """Open LinkedIn login page and wait for user to log in."""
-    from src.scrapers.linkedin import LinkedInScraper
-    async with LinkedInScraper(headless=False) as scraper:
-        page = await scraper.new_page()
-        await page.goto("https://www.linkedin.com/login")
-        print("[LinkedIn] Please log in in the browser window. Press Enter when done...")
-        input()
-        await page.close()

@@ -9,7 +9,7 @@ from src.scrapers.base import BaseScraper
 
 class IndeedScraper(BaseScraper):
     site_name = "indeed"
-    BASE_URL = "https://uk.indeed.com"  # adjust for your country
+    BASE_URL = "https://www.indeed.com"  # international — works for Luxembourg
 
     async def scrape_jobs(
         self, queries: list[str], location: str, remote: bool = False
