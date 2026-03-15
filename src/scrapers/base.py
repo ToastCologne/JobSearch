@@ -8,13 +8,16 @@ from playwright.async_api import BrowserContext, Page, async_playwright
 
 from src.config import get_browser_profile_dir
 
+_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/124.0.0.0 Safari/537.36"
+)
+_BROWSER_ARGS = ["--no-sandbox", "--disable-blink-features=AutomationControlled"]
+
 
 class BaseScraper(ABC):
-    """Base class for all job site scrapers.
-
-    Uses a persistent browser context to maintain session cookies
-    across runs (so the user only needs to log in once).
-    """
+    """Base class for all job site scrapers."""
 
     site_name: str = ""
 
@@ -24,26 +27,26 @@ class BaseScraper(ABC):
         self._browser = None
         self.context: BrowserContext | None = None
 
-    async def __aenter__(self):
-        self._playwright = await async_playwright().start()
+    async def _open_context(self, headless: bool) -> None:
+        """Launch (or relaunch) the persistent browser context."""
+        if self._browser:
+            await self._browser.close()
+            self._browser = None
         profile_dir = str(get_browser_profile_dir() / self.site_name)
         self._browser = await self._playwright.chromium.launch_persistent_context(
             user_data_dir=profile_dir,
-            headless=self.headless,
-            args=[
-                "--no-sandbox",
-                "--disable-blink-features=AutomationControlled",
-            ],
-            user_agent=(
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/124.0.0.0 Safari/537.36"
-            ),
+            headless=headless,
+            args=_BROWSER_ARGS,
+            user_agent=_USER_AGENT,
             viewport={"width": 1280, "height": 800},
             locale="en-GB",
-            timezone_id="Europe/London",
+            timezone_id="Europe/Luxembourg",
         )
         self.context = self._browser
+
+    async def __aenter__(self):
+        self._playwright = await async_playwright().start()
+        await self._open_context(self.headless)
         return self
 
     async def __aexit__(self, *args):
@@ -54,7 +57,6 @@ class BaseScraper(ABC):
 
     async def new_page(self) -> Page:
         page = await self.context.new_page()
-        # Remove automation fingerprint
         await page.add_init_script(
             "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
         )

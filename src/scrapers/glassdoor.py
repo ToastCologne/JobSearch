@@ -9,7 +9,7 @@ from src.scrapers.base import BaseScraper
 
 class GlassdoorScraper(BaseScraper):
     site_name = "glassdoor"
-    BASE_URL = "https://www.glassdoor.co.uk"
+    BASE_URL = "https://www.glassdoor.com"  # international — works for Luxembourg
 
     async def scrape_jobs(
         self, queries: list[str], location: str, remote: bool = False

@@ -75,15 +75,43 @@ def extract_years_experience(text: str) -> str | None:
 
 
 # ---------------------------------------------------------------------------
-# Keyword filters (title + description)
+# Keyword filters
 # ---------------------------------------------------------------------------
 
-def _passes_keyword_filters(job: dict[str, Any], required: list[str], excluded: list[str]) -> bool:
-    text = f"{job.get('title', '')} {job.get('description', '')}".lower()
-    # Strip empty strings from lists (config placeholders)
-    required = [k for k in required if k]
+def _passes_title_filters(
+    title: str,
+    required_any: list[str],
+    excluded: list[str],
+) -> bool:
+    """
+    Title must contain AT LEAST ONE of required_any (OR logic).
+    Title must contain NONE of excluded (AND NOT logic).
+    Empty lists disable that check.
+    """
+    t = title.lower()
+    required_any = [k for k in required_any if k]
     excluded = [k for k in excluded if k]
-    if required and not all(k.lower() in text for k in required):
+    if required_any and not any(k.lower() in t for k in required_any):
+        return False
+    if excluded and any(k.lower() in t for k in excluded):
+        return False
+    return True
+
+
+def _passes_description_filters(
+    job: dict[str, Any],
+    required_all: list[str],
+    excluded: list[str],
+) -> bool:
+    """
+    Full text (title + description) must contain ALL of required_all (AND logic).
+    Full text must contain NONE of excluded.
+    Empty lists disable that check.
+    """
+    text = f"{job.get('title', '')} {job.get('description', '')}".lower()
+    required_all = [k for k in required_all if k]
+    excluded = [k for k in excluded if k]
+    if required_all and not all(k.lower() in text for k in required_all):
         return False
     if excluded and any(k.lower() in text for k in excluded):
         return False
@@ -105,8 +133,10 @@ async def run_scrape_pipeline(headless: bool = True) -> dict:
     company_pages = search.get("company_pages", [])
 
     matching = cfg.get("matching", {})
-    required_kw = matching.get("required_keywords", [])
-    excluded_kw = matching.get("excluded_keywords", [])
+    required_title_kw = matching.get("required_title_keywords", [])
+    excluded_title_kw = matching.get("excluded_title_keywords", [])
+    required_desc_kw = matching.get("required_keywords", [])
+    excluded_desc_kw = matching.get("excluded_keywords", [])
     excluded_langs = matching.get("exclude_languages", ["French", "German", "Luxembourgish"])
 
     run_id = db.start_scrape_run()
@@ -158,20 +188,25 @@ async def run_scrape_pipeline(headless: bool = True) -> dict:
     # --- Apply filters ---
     filtered: list[dict] = []
     for job in all_jobs:
-        desc = job.get("description", "") or ""
         title = job.get("title", "") or ""
+        desc = job.get("description", "") or ""
         full_text = f"{title} {desc}"
 
-        # 1. Keyword hard filters
-        if not _passes_keyword_filters(job, required_kw, excluded_kw):
+        # 1. Title must contain a legal keyword AND must not contain excluded title words
+        if not _passes_title_filters(title, required_title_kw, excluded_title_kw):
+            print(f"  [SKIP] Title filter: '{title}'")
             continue
 
-        # 2. Language exclusion filter
+        # 2. Full-text required/excluded keyword filters (optional, description-level)
+        if not _passes_description_filters(job, required_desc_kw, excluded_desc_kw):
+            continue
+
+        # 3. Language exclusion filter
         if _requires_excluded_language(full_text, excluded_langs):
             print(f"  [SKIP] Language requirement: {title} @ {job.get('company', '')}")
             continue
 
-        # 3. Extract years of experience
+        # 4. Extract years of experience
         job["years_experience"] = extract_years_experience(full_text)
 
         filtered.append(job)

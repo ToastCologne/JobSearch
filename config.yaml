@@ -15,7 +15,7 @@ search:
     - "Contract Counsel"
 
   # Location (city, country, or "Remote")
-  location: "London, UK"
+  location: "Luxembourg"
 
   # Include remote jobs
   remote: true
@@ -64,17 +64,26 @@ search:
       url: "https://www.credit-agricole.com/en/career/job-offers?q=legal+counsel"
 
 matching:
-  # Keywords that MUST appear in the job title or description
-  required_keywords:
-    - ""  # Leave empty to disable; add e.g. "banking" to only show banking roles
+  # Job TITLE must contain at least one of these (OR logic).
+  # Jobs whose title has none of these words are silently dropped.
+  required_title_keywords:
+    - "legal"
+    - "lawyer"
+    - "counsel"
+    - "documentation"
 
-  # Keywords that disqualify a job — any match means the job is excluded
-  excluded_keywords:
-    - ""  # Leave empty to disable; add e.g. "paralegal" to exclude those roles
+  # Job TITLE must NOT contain any of these words — matching jobs are dropped.
+  excluded_title_keywords:
+    - "junior"
 
-  # Language exclusion: jobs requiring these languages are automatically excluded.
-  # The scraper will filter out postings that list French, German, or Luxembourgish
-  # as a required language.
+  # Optional: ALL of these must appear somewhere in the full job text (title +
+  # description). Leave the list empty to disable.
+  required_keywords: []
+
+  # Optional: if ANY of these appear in the full job text the job is dropped.
+  excluded_keywords: []
+
+  # Language exclusion: jobs that list these as required languages are dropped.
   exclude_languages:
     - "French"
     - "German"
