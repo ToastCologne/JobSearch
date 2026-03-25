@@ -1,87 +1,70 @@
-# Job Search Bot Configuration — Legal & Finance Focus
+# Legal Job Scraper — Configuration
+#
+# HOW TO ADD COMPANY PAGES
+# ─────────────────────────
+# Provide the URL of the *search results page* with all filters already applied
+# (location = Luxembourg, category = Legal / Counsel etc.).
+# The scraper re-visits that exact URL every time you run a scrape, so any
+# filters baked into the URL are applied automatically.
+#
+# Good example:
+#   url: "https://careers.jpmorgan.com/us/en/jobs?search=legal+counsel&location=Luxembourg"
+#
+# The scraper then follows each individual job link it finds on that page,
+# reads the real job title from the <h1>, extracts the location, and saves
+# the description — so what you see in the dashboard is the true job data,
+# not link anchor text.
 
 search:
-  # Job titles / keywords to search for
+  # These are only used by LinkedIn / Indeed / Glassdoor (all disabled below).
+  # They have no effect on company-page scraping.
   queries:
     - "Legal Counsel"
-    - "In-house Counsel"
     - "Lawyer"
-    - "Associate Lawyer"
-    - "Legal Advisor"
-    - "Corporate Counsel"
-    - "Compliance Counsel"
+    - "Counsel"
     - "Documentation Specialist"
-    - "Legal Documentation"
-    - "Contract Counsel"
 
-  # Location (city, country, or "Remote")
   location: "Luxembourg"
+  remote: false
 
-  # Include remote jobs
-  remote: true
-
-  # Salary filters (leave null to disable)
-  salary_min: null
-  salary_max: null
-
-  # Which job sites to scrape
+  # Job boards — disabled while you configure company pages
   sites:
-    linkedin: true
-    indeed: true
-    glassdoor: true
+    linkedin: false
+    indeed: false
+    glassdoor: false
 
-  # Banking & finance company career pages
-  company_pages:
-    - name: "Goldman Sachs"
-      url: "https://www.goldmansachs.com/careers/search#ss=Legal"
-    - name: "JPMorgan Chase"
-      url: "https://careers.jpmorgan.com/us/en/jobs?search=legal+counsel&category=Legal"
-    - name: "Barclays"
-      url: "https://search.jobs.barclays/search-jobs/legal/united-kingdom/22546/1/2/6269131/51x5-0/-0x12667/50/2"
-    - name: "HSBC"
-      url: "https://mycareer.hsbc.com/en_GB/ext/Search.html?jobFamily=Legal%2C+Compliance+%26+Regulatory"
-    - name: "Deutsche Bank"
-      url: "https://careers.db.com/professionals/search-roles/#/professional/results?keywords=legal+counsel"
-    - name: "Citi"
-      url: "https://jobs.citi.com/search-jobs/legal/287/1"
-    - name: "UBS"
-      url: "https://www.ubs.com/global/en/careers/job-search.html#q=legal+counsel&t=1"
-    - name: "Morgan Stanley"
-      url: "https://www.morganstanley.com/careers/search-jobs?keyword=legal&department=Legal"
-    - name: "BNP Paribas"
-      url: "https://group.bnpparibas/en/careers/job-offers?keywords=legal+counsel&country=United+Kingdom"
-    - name: "Standard Chartered"
-      url: "https://scb.taleo.net/careersection/ex/jobsearch.ftl?lang=en&keyword=legal+counsel"
-    - name: "Lloyds Banking Group"
-      url: "https://www.lloydsbankinggroup.com/careers/opportunities.html?keywords=legal+counsel"
-    - name: "NatWest Group"
-      url: "https://jobs.natwestgroup.com/jobs/?keywords=legal+counsel"
-    - name: "BlackRock"
-      url: "https://careers.blackrock.com/job-search-results/?keyword=legal+counsel"
-    - name: "Societe Generale"
-      url: "https://careers.societegenerale.com/en/job-offers?keywords=legal+counsel&country=United+Kingdom"
-    - name: "Credit Agricole"
-      url: "https://www.credit-agricole.com/en/career/job-offers?q=legal+counsel"
+  # ── Add your company career-search URLs below ──────────────────────────────
+  # Each entry needs a display name and the pre-filtered search results URL.
+  # Remove or comment out entries you don't want.
+  company_pages: []
+  #   - name: "JPMorgan Chase"
+  #     url: "https://careers.jpmorgan.com/us/en/jobs?search=legal+counsel&location=Luxembourg"
+  #   - name: "Goldman Sachs"
+  #     url: "https://www.goldmansachs.com/careers/search?ss=Legal&location=Luxembourg"
+  #   - name: "Deutsche Bank"
+  #     url: "https://careers.db.com/professionals/search-roles/#/professional/results?keywords=legal+counsel&location=Luxembourg"
+  #   - name: "BNP Paribas"
+  #     url: "https://group.bnpparibas/en/careers/job-offers?keywords=legal+counsel&country=Luxembourg"
 
 matching:
   # Job TITLE must contain at least one of these (OR logic).
-  # Jobs whose title has none of these words are silently dropped.
+  # A job whose title contains none of these is dropped.
   required_title_keywords:
     - "legal"
     - "lawyer"
     - "counsel"
     - "documentation"
 
-  # Job TITLE must NOT contain any of these words — matching jobs are dropped.
+  # Job TITLE must NOT contain any of these (case-insensitive).
   excluded_title_keywords:
     - "junior"
+    - "notice"
+    - "disclaimer"
+    - "policy"
 
-  # Optional: ALL of these must appear somewhere in the full job text (title +
-  # description). Leave the list empty to disable.
-  required_keywords: []
-
-  # Optional: if ANY of these appear in the full job text the job is dropped.
-  excluded_keywords: []
+  # Optional full-text filters (title + description).
+  required_keywords: []   # ALL must be present — leave empty to disable
+  excluded_keywords: []   # ANY match drops the job — leave empty to disable
 
   # Language exclusion: jobs that list these as required languages are dropped.
   exclude_languages:
@@ -90,10 +73,8 @@ matching:
     - "Luxembourgish"
 
 scheduler:
-  # Run scraping automatically on a schedule
   enabled: false
-  # Cron expression: default = weekdays at 9am
-  cron: "0 9 * * 1-5"
+  cron: "0 9 * * 1-5"   # weekdays at 9 am
 
 dashboard:
   host: "127.0.0.1"

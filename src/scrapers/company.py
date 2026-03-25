@@ -1,9 +1,35 @@
-"""Company career page scraper (generic)."""
+"""Company career page scraper — strict job-link detection."""
 from typing import Any
+from urllib.parse import urlparse
 
 from playwright.async_api import Page
 
 from src.scrapers.base import BaseScraper
+
+# The URL *path* (not domain, not query string) must contain one of these
+# for a link to be considered a job posting.  This eliminates footer links
+# like /legal, /privacy, /terms, /about etc.
+_JOB_PATH_SEGMENTS = [
+    "/job/", "/jobs/", "/position/", "/positions/",
+    "/role/", "/roles/", "/opening/", "/openings/",
+    "/vacancy/", "/vacancies/", "/apply/",
+    "/requisition/", "/posting/", "/opportunity/",
+    "/offre/", "/emploi/",
+]
+
+# Link text that is definitely not a job title — exact, case-insensitive match.
+_NON_JOB_TEXTS = frozenset([
+    "legal", "legal notice", "legal disclaimer",
+    "privacy", "privacy policy", "privacy notice",
+    "terms", "terms of use", "terms and conditions",
+    "cookie policy", "cookie notice", "cookies",
+    "imprint", "disclaimer", "sitemap", "accessibility",
+    "contact", "contact us", "about", "about us",
+    "home", "back", "next", "previous",
+    "sign in", "log in", "register",
+    "apply now", "search jobs", "view all jobs",
+    "load more", "show more", "careers", "job search",
+])
 
 
 class CompanyPageScraper(BaseScraper):
@@ -36,43 +62,49 @@ class CompanyPageScraper(BaseScraper):
             print(f"[{company}] Navigation error: {e}")
             return []
 
-        await self.human_delay(2000, 3000)
-        jobs: list[dict[str, Any]] = []
+        # Extra wait for JS-heavy career portals
+        await self.human_delay(3000, 5000)
 
-        # Generic job link detection — looks for <a> tags with common job keywords
-        links = await page.query_selector_all("a")
+        parsed_base = urlparse(url)
+        base_domain = f"{parsed_base.scheme}://{parsed_base.netloc}"
+        jobs: list[dict[str, Any]] = []
         seen_urls: set[str] = set()
+
+        links = await page.query_selector_all("a[href]")
 
         for link in links:
             try:
-                text = (await link.inner_text()).strip()
-                href = await link.get_attribute("href") or ""
-
-                # Filter for plausible job listing links
-                if not text or len(text) > 120 or len(text) < 5:
+                # Skip anything inside nav / header / footer — never a job card
+                in_chrome = await link.evaluate(
+                    "el => !!el.closest('nav, footer, header,"
+                    " [role=\"navigation\"], [role=\"banner\"]')"
+                )
+                if in_chrome:
                     continue
-                if not any(
-                    kw in href.lower()
-                    for kw in ["job", "career", "position", "role", "opening", "vacancy"]
-                ):
-                    if not any(
-                        kw in text.lower()
-                        for kw in [
-                            "engineer", "developer", "manager", "analyst", "designer",
-                            "counsel", "lawyer", "legal", "attorney", "solicitor",
-                            "documentation", "compliance", "advisor", "associate",
-                        ]
-                    ):
-                        continue
+
+                text = (await link.inner_text()).strip()
+                href = (await link.get_attribute("href") or "").strip()
+
+                if not text or not href:
+                    continue
+                if len(text) > 150 or len(text) < 5:
+                    continue
+
+                # Drop known non-job link texts
+                if text.lower() in _NON_JOB_TEXTS:
+                    continue
 
                 # Build absolute URL
                 if href.startswith("http"):
                     full_url = href
                 elif href.startswith("/"):
-                    from urllib.parse import urlparse
-                    parsed = urlparse(url)
-                    full_url = f"{parsed.scheme}://{parsed.netloc}{href}"
+                    full_url = f"{base_domain}{href}"
                 else:
+                    continue
+
+                # The URL path must contain a job-specific segment
+                path = urlparse(full_url).path.lower()
+                if not any(seg in path for seg in _JOB_PATH_SEGMENTS):
                     continue
 
                 if full_url in seen_urls:
@@ -80,7 +112,7 @@ class CompanyPageScraper(BaseScraper):
                 seen_urls.add(full_url)
 
                 jobs.append({
-                    "title": text,
+                    "title": text,   # may be replaced by real <h1> below
                     "company": company,
                     "location": "",
                     "url": full_url,
@@ -92,20 +124,45 @@ class CompanyPageScraper(BaseScraper):
             except Exception:
                 continue
 
-        print(f"[{company}] Found {len(jobs)} potential job links")
+        print(f"[{company}] Found {len(jobs)} job links on listing page")
 
-        # Fetch description for first N jobs
-        for job in jobs[:15]:
+        # Visit each job detail page: get real title, location, description
+        for job in jobs[:20]:
             try:
-                desc_page = await self.new_page()
-                await desc_page.goto(job["url"], wait_until="domcontentloaded", timeout=20000)
+                detail = await self.new_page()
+                await detail.goto(job["url"], wait_until="domcontentloaded", timeout=25000)
                 await self.human_delay(1000, 2000)
-                body = await desc_page.query_selector("main, article, .content, body")
+
+                # Prefer the <h1> as the canonical job title
+                h1 = await detail.query_selector("h1")
+                if h1:
+                    real_title = (await h1.inner_text()).strip()
+                    if real_title:
+                        job["title"] = real_title
+
+                # Try common location selectors
+                for sel in [
+                    "[class*='location' i]", "[data-testid*='location' i]",
+                    "[class*='Location']", ".job-location", "[class*='city' i]",
+                ]:
+                    loc_el = await detail.query_selector(sel)
+                    if loc_el:
+                        loc_text = (await loc_el.inner_text()).strip()
+                        if loc_text:
+                            job["location"] = loc_text
+                            break
+
+                # Description from the main content area
+                body = await detail.query_selector(
+                    "main, article, [class*='description' i],"
+                    " [class*='job-detail' i], body"
+                )
                 if body:
                     job["description"] = (await body.inner_text()).strip()[:5000]
-                await desc_page.close()
+
+                await detail.close()
             except Exception:
                 pass
-            await self.human_delay(500, 1500)
+            await self.human_delay(600, 1400)
 
         return jobs
